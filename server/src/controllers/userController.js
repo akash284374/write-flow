@@ -159,7 +159,6 @@ export const getFollowing = async (req, res) => {
   }
 };
 
-// ✅ Get Top Users
 export const getTopUsers = async (req, res) => {
   try {
     const { filter = "" } = req.query;
