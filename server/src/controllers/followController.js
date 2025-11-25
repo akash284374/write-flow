@@ -28,7 +28,7 @@ export const toggleFollow = async (req, res) => {
   }
 };
 
-// ✅ Friend Suggestions (people you don’t follow yet)
+// ✅ Friend Suggestions 
 export const getFollowSuggestions = async (req, res) => {
   try {
     const userId = req.user._id;
