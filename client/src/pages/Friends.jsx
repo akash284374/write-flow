@@ -1,277 +1,213 @@
-// src/components/Friends.jsx
+// src/pages/Friends.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { FiUserPlus, FiUserX } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 
 const Friends = () => {
-  const { token } = useAuth();
-  const [activeTab, setActiveTab] = useState("suggestions"); // "suggestions", "followers", "following"
-  const [friends, setFriends] = useState([]);
+  const { user, loading: authLoading, refreshUser } = useAuth();
+
+  const [activeTab, setActiveTab] = useState("suggestions");
+  const [suggestions, setSuggestions] = useState([]);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [followLoading, setFollowLoading] = useState({});
-  const [userId, setUserId] = useState(null);
+  const [error, setError] = useState("");
 
-  // Fetch logged-in user
-  const fetchUserId = async () => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/auth/me", {
-        withCredentials: true,
-        headers: { Authorization: token ? `Bearer ${token}` : "" },
-      });
-      setUserId(res.data.user._id || res.data.user.id);
-    } catch (err) {
-      console.error("Error fetching user:", err);
-      setError("Unable to get logged-in user.");
-    }
-  };
+  const userId = user?._id;
 
-  // Fetch friend suggestions
+  // --------------------------------------------------
+  // FETCH SUGGESTIONS
+  // --------------------------------------------------
   const fetchSuggestions = async () => {
-    if (!userId) return;
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:5000/api/follow/suggestions", {
-        withCredentials: true,
-        headers: { Authorization: token ? `Bearer ${token}` : "" },
-      });
-      setFriends(res.data.suggestions || []);
+
+      const res = await api.get("/follow/suggestions");
+
+      setSuggestions(res.data.users || []);
     } catch (err) {
-      console.error("Error fetching suggestions:", err);
-      setError("Failed to load friend suggestions.");
+      console.error("Suggestions error:", err);
+      setError("Failed to load suggestions");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch followers
+  // --------------------------------------------------
+  // FETCH FOLLOWERS
+  // --------------------------------------------------
   const fetchFollowers = async () => {
-    if (!userId) return;
     try {
       setLoading(true);
-      const res = await axios.get(
-        `http://localhost:5000/api/follow/followers/${userId}`,
-        {
-          withCredentials: true,
-          headers: { Authorization: token ? `Bearer ${token}` : "" },
-        }
-      );
-      setFollowers(res.data.followers || []);
+
+      const res = await api.get(`/follow/followers/${userId}`);
+
+      setFollowers(res.data.data || []);
     } catch (err) {
-      console.error("Error fetching followers:", err);
-      setError("Failed to load followers.");
+      console.error("Followers error:", err);
+      setError("Failed to load followers");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch following
+  // --------------------------------------------------
+  // FETCH FOLLOWING
+  // --------------------------------------------------
   const fetchFollowing = async () => {
-    if (!userId) return;
     try {
       setLoading(true);
-      const res = await axios.get(
-        `http://localhost:5000/api/follow/following/${userId}`,
-        {
-          withCredentials: true,
-          headers: { Authorization: token ? `Bearer ${token}` : "" },
-        }
-      );
-      setFollowing(res.data.following || []);
+
+      const res = await api.get(`/follow/following/${userId}`);
+
+      setFollowing(res.data.data || []);
     } catch (err) {
-      console.error("Error fetching following:", err);
-      setError("Failed to load following.");
+      console.error("Following error:", err);
+      setError("Failed to load following");
     } finally {
       setLoading(false);
     }
   };
 
-  // Follow a user
-  const handleFollow = async (followeeId) => {
+  // --------------------------------------------------
+  // FOLLOW / UNFOLLOW
+  // --------------------------------------------------
+  const toggleFollow = async (targetId) => {
+    setFollowLoading((prev) => ({ ...prev, [targetId]: true }));
+
     try {
-      setFollowLoading((prev) => ({ ...prev, [followeeId]: true }));
-      await axios.post(
-        "http://localhost:5000/api/follow/follow",
-        { followeeId },
-        {
-          withCredentials: true,
-          headers: { Authorization: token ? `Bearer ${token}` : "" },
-        }
-      );
-      setFriends((prev) => prev.filter((f) => (f._id || f.id) !== followeeId));
-      fetchFollowing();
+      await api.post(`/follow/${targetId}`);
+
+      await Promise.all([fetchSuggestions(), fetchFollowing()]);
+      await refreshUser();
     } catch (err) {
-      console.error("Error following user:", err);
-      alert(err.response?.data?.message || "Failed to follow user.");
+      console.error("Follow toggle error:", err);
+      alert("Error updating follow status");
     } finally {
-      setFollowLoading((prev) => ({ ...prev, [followeeId]: false }));
+      setFollowLoading((prev) => ({ ...prev, [targetId]: false }));
     }
   };
 
-  // Unfollow a user
-  const handleUnfollow = async (followeeId) => {
+  // --------------------------------------------------
+  // REMOVE FOLLOWER
+  // --------------------------------------------------
+  const removeFollower = async (id) => {
+    setFollowLoading((prev) => ({ ...prev, [id]: true }));
+
     try {
-      setFollowLoading((prev) => ({ ...prev, [followeeId]: true }));
-      await axios.post(
-        "http://localhost:5000/api/follow/unfollow",
-        { followeeId },
-        {
-          withCredentials: true,
-          headers: { Authorization: token ? `Bearer ${token}` : "" },
-        }
-      );
-      fetchFollowing();
+      await api.post("/follow/remove-friend", { friendId: id });
+
+      setFollowers((prev) => prev.filter((f) => f._id !== id));
+      await refreshUser();
     } catch (err) {
-      console.error("Error unfollowing user:", err);
-      alert(err.response?.data?.message || "Failed to unfollow user.");
+      console.error("Remove follower error:", err);
+      alert("Failed to remove follower");
     } finally {
-      setFollowLoading((prev) => ({ ...prev, [followeeId]: false }));
+      setFollowLoading((prev) => ({ ...prev, [id]: false }));
     }
   };
 
-  // Remove friend (from followers tab)
-  const handleRemoveFriend = async (friendId) => {
-    try {
-      setFollowLoading((prev) => ({ ...prev, [friendId]: true }));
-      await axios.post(
-        "http://localhost:5000/api/follow/remove-friend",
-        { friendId },
-        {
-          withCredentials: true,
-          headers: { Authorization: token ? `Bearer ${token}` : "" },
-        }
-      );
-      setFollowers((prev) => prev.filter((f) => (f._id || f.id) !== friendId));
-    } catch (err) {
-      console.error("Error removing friend:", err);
-      alert(err.response?.data?.message || "Failed to remove friend.");
-    } finally {
-      setFollowLoading((prev) => ({ ...prev, [friendId]: false }));
-    }
-  };
-
-  // Initial fetch of userId
+  // --------------------------------------------------
+  // TRIGGER FETCH ON TAB SWITCH
+  // --------------------------------------------------
   useEffect(() => {
-    fetchUserId();
-  }, [token]);
+    if (!authLoading && userId) {
+      if (activeTab === "suggestions") fetchSuggestions();
+      if (activeTab === "followers") fetchFollowers();
+      if (activeTab === "following") fetchFollowing();
+    }
+  }, [activeTab, authLoading, userId]);
 
-  // Fetch data when tab changes or userId is set
-  useEffect(() => {
-    if (!userId) return;
-
-    if (activeTab === "suggestions") fetchSuggestions();
-    else if (activeTab === "followers") fetchFollowers();
-    else fetchFollowing();
-  }, [activeTab, userId]);
-
-  if (loading) return <p className="p-6 text-gray-500">Loading...</p>;
+  if (authLoading || loading) return <p className="p-6">Loading...</p>;
   if (error) return <p className="p-6 text-red-500">{error}</p>;
 
-  let displayList = [];
-  if (activeTab === "suggestions") displayList = friends;
-  else if (activeTab === "followers") displayList = followers;
-  else displayList = following;
+  const data =
+    activeTab === "suggestions"
+      ? suggestions
+      : activeTab === "followers"
+      ? followers
+      : following;
 
   return (
     <div className="p-6">
       <h2 className="text-2xl font-semibold mb-4">Friends</h2>
 
-      {/* Tabs */}
+      {/* Tabs UI */}
       <div className="flex gap-4 mb-6">
         {["suggestions", "followers", "following"].map((tab) => (
           <button
             key={tab}
-            className={`px-4 py-2 rounded-xl ${
-              activeTab === tab
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 dark:bg-gray-700"
-            }`}
             onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-xl ${
+              activeTab === tab ? "bg-blue-600 text-white" : "bg-gray-300"
+            }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
 
-      {/* List */}
-      {displayList.length === 0 ? (
+      {data.length === 0 ? (
         <p className="text-gray-500">
           {activeTab === "suggestions"
-            ? "No friend suggestions."
+            ? "No suggestions available."
             : activeTab === "followers"
             ? "No followers yet."
-            : "You are not following anyone."}
+            : "Not following anyone."}
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayList.map((user) => {
-            const uid = user._id || user.id;
-            return (
-              <div
-                key={uid}
-                className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow border border-gray-200 dark:border-gray-700 hover:shadow-md transition"
-              >
-                <div className="flex items-center gap-4">
-                  <img
-                    src={user.profileImage || `https://i.pravatar.cc/150?u=${uid}`}
-                    alt={user.name}
-                    className="w-14 h-14 rounded-full object-cover"
-                  />
-                  <div>
-                    <h3 className="text-lg font-bold">{user.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {user.bio || "No bio"}
-                    </p>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {data.map((u) => (
+            <div
+              key={u._id}
+              className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow"
+            >
+              <div className="flex gap-4 items-center">
+                <img
+                  src={u.profileImage || `https://i.pravatar.cc/150?u=${u._id}`}
+                  className="w-14 h-14 rounded-full"
+                  alt="avatar"
+                />
+                <div>
+                  <h3 className="text-lg font-bold">{u.username}</h3>
+                  <p className="text-sm text-gray-500">{u.bio || "No bio"}</p>
                 </div>
-
-                {activeTab === "suggestions" && (
-                  <button
-                    disabled={followLoading[uid]}
-                    onClick={() => handleFollow(uid)}
-                    className={`mt-4 w-full py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition ${
-                      followLoading[uid]
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-700 text-white"
-                    }`}
-                  >
-                    {followLoading[uid] ? "Following..." : <><FiUserPlus /> Follow</>}
-                  </button>
-                )}
-
-                {activeTab === "following" && (
-                  <button
-                    disabled={followLoading[uid]}
-                    onClick={() => handleUnfollow(uid)}
-                    className={`mt-4 w-full py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition ${
-                      followLoading[uid]
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-red-600 hover:bg-red-700 text-white"
-                    }`}
-                  >
-                    {followLoading[uid] ? "Unfollowing..." : "Unfollow"}
-                  </button>
-                )}
-
-                {activeTab === "followers" && (
-                  <button
-                    disabled={followLoading[uid]}
-                    onClick={() => handleRemoveFriend(uid)}
-                    className={`mt-4 w-full py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition ${
-                      followLoading[uid]
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-red-600 hover:bg-red-700 text-white"
-                    }`}
-                  >
-                    {followLoading[uid] ? "Removing..." : <><FiUserX /> Remove Friend</>}
-                  </button>
-                )}
               </div>
-            );
-          })}
+
+              {/* BUTTONS */}
+              {activeTab === "suggestions" && (
+                <button
+                  disabled={followLoading[u._id]}
+                  onClick={() => toggleFollow(u._id)}
+                  className="mt-4 w-full py-2 bg-blue-600 text-white rounded-xl flex items-center justify-center gap-2"
+                >
+                  {followLoading[u._id] ? "Following..." : <><FiUserPlus /> Follow</>}
+                </button>
+              )}
+
+              {activeTab === "following" && (
+                <button
+                  disabled={followLoading[u._id]}
+                  onClick={() => toggleFollow(u._id)}
+                  className="mt-4 w-full py-2 bg-red-600 text-white rounded-xl"
+                >
+                  {followLoading[u._id] ? "Unfollowing..." : "Unfollow"}
+                </button>
+              )}
+
+              {activeTab === "followers" && (
+                <button
+                  disabled={followLoading[u._id]}
+                  onClick={() => removeFollower(u._id)}
+                  className="mt-4 w-full py-2 bg-red-700 text-white rounded-xl flex items-center justify-center gap-2"
+                >
+                  {followLoading[u._id] ? "Removing..." : <><FiUserX /> Remove</>}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -1,42 +1,52 @@
-// routes/userRoutes.js
 import express from "express";
 import {
   getFollowingUsers,
   isAlreadyFollowing,
   updateUserAboutSection,
+  updateProfile,
+  changePassword,       // <-- ADD THIS
   followToggle,
   getFollowers,
   getFollowing,
   getTopUsers,
-  getAllUsers,   // ✅ NEW CONTROLLER
+  getAllUsers,
+  deleteAccount 
 } from "../controllers/userController.js";
 
 import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// ✅ Get all users (for Search page) - requires logged in user
-router.get("/", protect, getAllUsers);
+/* ----------------------------------------
+   STATIC ROUTES FIRST
+----------------------------------------- */
 
-// ✅ Get full following users list (public, no auth needed)
-router.get("/:userId/following-users", getFollowingUsers);
+router.delete("/delete", protect, deleteAccount);
 
-// ✅ Check if already following (requires logged-in user)
-router.get("/:id/is-following", protect, isAlreadyFollowing);
+// Profile Update
+router.put("/profile", protect, updateProfile);
 
-// ✅ Update user about section (requires logged-in user)
+// About Update
 router.put("/about", protect, updateUserAboutSection);
 
-// ✅ Follow/Unfollow toggle (requires logged-in user)
+// ⭐ FIX: Change Password (STATIC ROUTE)
+router.put("/change-password", protect, changePassword);
+
+// Get all users
+router.get("/", protect, getAllUsers);
+
+// Get top users
+router.get("/top", getTopUsers);
+
+/* ----------------------------------------
+   FOLLOW SYSTEM
+----------------------------------------- */
+
+router.get("/:id/followers", getFollowers);
+router.get("/:id/following", getFollowing);
+router.get("/:id/is-following", protect, isAlreadyFollowing);
 router.post("/:id/follow-toggle", protect, followToggle);
 
-// ✅ Get followers of a user (public)
-router.get("/:id/followers", getFollowers);
-
-// ✅ Get following of a user (public)
-router.get("/:id/following", getFollowing);
-
-// ✅ Get top users with optional filter (public)
-router.get("/top", getTopUsers);
+router.get("/:userId/following-users", getFollowingUsers);
 
 export default router;

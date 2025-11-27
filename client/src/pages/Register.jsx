@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
-import api from "../services/api"; // ✅ API instance
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Register = () => {
+  const navigate = useNavigate();
+  const { signup } = useAuth(); // ✅ Use AuthContext signup()
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loadingButton, setLoadingButton] = useState(false);
 
   const { register, handleSubmit, reset, formState } = useForm({
@@ -22,18 +23,20 @@ const Register = () => {
 
   const onSubmit = async (data) => {
     setError("");
-    setSuccess("");
     setLoadingButton(true);
 
     try {
-      const res = await api.post("/auth/register", data); // ✅ Backend route
-      const result = res.data;
+      const result = await signup(data); // 🔥 THIS logs in & stores user in context
 
       if (result.success) {
         reset();
-        setSuccess(result.message || "Registration successful!");
+
+        // 🔥 Redirect to HOME after signup
+        navigate("/");
+
+        return;
       } else {
-        setError(result.error || "Something went wrong");
+        setError(result.message || "Registration failed");
       }
     } catch (err) {
       setError(err.response?.data?.message || "Server error. Please try again.");
@@ -51,62 +54,56 @@ const Register = () => {
         </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Name */}
+
           <div>
             <label className="block mb-1 font-medium">Name</label>
             <input
               type="text"
               placeholder="Enter your name"
-              disabled={formState.isSubmitting || loadingButton}
+              disabled={loadingButton}
               {...register("name", { required: true })}
-              className="w-full border rounded p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded p-2 text-black"
             />
           </div>
 
-          {/* Username */}
           <div>
             <label className="block mb-1 font-medium">Username</label>
             <input
               type="text"
               placeholder="Enter your username"
-              disabled={formState.isSubmitting || loadingButton}
+              disabled={loadingButton}
               {...register("username", { required: true })}
-              className="w-full border rounded p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded p-2 text-black"
             />
           </div>
 
-          {/* Email */}
           <div>
             <label className="block mb-1 font-medium">Email</label>
             <input
               type="email"
               placeholder="Enter your email"
-              disabled={formState.isSubmitting || loadingButton}
+              disabled={loadingButton}
               {...register("email", { required: true })}
-              className="w-full border rounded p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded p-2 text-black"
             />
           </div>
 
-          {/* Password */}
           <div>
             <label className="block mb-1 font-medium">Password</label>
             <input
               type="password"
               placeholder="Enter your password"
-              disabled={formState.isSubmitting || loadingButton}
+              disabled={loadingButton}
               {...register("password", { required: true })}
-              className="w-full border rounded p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded p-2 text-black"
             />
           </div>
 
-          {/* Error & Success */}
           {error && <p className="text-red-500 text-sm">{error}</p>}
-          {success && <p className="text-green-500 text-sm">{success}</p>}
 
-          {/* Submit Button */}
           <button
             type="submit"
-            disabled={formState.isSubmitting || loadingButton}
+            disabled={loadingButton}
             className="w-full bg-black text-white py-2 rounded font-semibold disabled:bg-gray-300"
           >
             {loadingButton ? "Registering..." : "Register"}

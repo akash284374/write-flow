@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
-import api from "../services/api"; // ✅ API instance (axios)
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth(); // ✅ Use AuthContext login()
   const [error, setError] = useState("");
   const [loadingButton, setLoadingButton] = useState(false);
 
@@ -23,17 +24,16 @@ const Login = () => {
     setLoadingButton(true);
 
     try {
-      const res = await api.post("/auth/login", data); // ✅ Backend login route
-      const result = res.data;
+      const result = await login(data); // ✅ AuthContext login()
 
       if (result.success) {
         reset();
-        navigate("/dashboard"); // ✅ Redirect after login
+        navigate("/"); // ✅ Redirect HOME
       } else {
         setError(result.message || "Invalid email or password");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Server error. Please try again.");
+      setError("Login failed. Try again.");
     } finally {
       setLoadingButton(false);
     }
@@ -55,9 +55,9 @@ const Login = () => {
             <input
               type="email"
               placeholder="Enter your email"
-              disabled={formState.isSubmitting || loadingButton}
+              disabled={loadingButton}
               {...register("email", { required: true })}
-              className="w-full border rounded p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded p-2 text-black placeholder-gray-500"
             />
           </div>
 
@@ -67,19 +67,19 @@ const Login = () => {
             <input
               type="password"
               placeholder="Enter your password"
-              disabled={formState.isSubmitting || loadingButton}
+              disabled={loadingButton}
               {...register("password", { required: true })}
-              className="w-full border rounded p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded p-2 text-black placeholder-gray-500"
             />
           </div>
 
           {/* Error */}
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
-            disabled={formState.isSubmitting || loadingButton}
+            disabled={loadingButton}
             className="w-full bg-black text-white py-2 rounded font-semibold disabled:bg-gray-300"
           >
             {loadingButton ? "Logging in..." : "Login"}

@@ -10,19 +10,23 @@ import {
 
 const router = express.Router();
 
-// ✅ Toggle follow/unfollow
-router.post("/:userId", protect, toggleFollow);
+// ====================================================
+// CORRECT ROUTE ORDER — MUST NOT BE CHANGED
+// ====================================================
 
 // ✅ Suggestions
 router.get("/suggestions", protect, getFollowSuggestions);
 
-// ✅ Followers list
+// ✅ Followers
 router.get("/followers/:userId", protect, getFollowers);
 
-// ✅ Following list
+// ✅ Following
 router.get("/following/:userId", protect, getFollowing);
 
-// ✅ Remove follower (block/remove)
+// ✅ Remove follower (IMPORTANT: MUST BE BEFORE /:userId)
 router.post("/remove-friend", protect, removeFriend);
+
+// 🔥 Follow / Unfollow toggle (USER ID MUST BE LAST ROUTE)
+router.post("/:userId", protect, toggleFollow);
 
 export default router;

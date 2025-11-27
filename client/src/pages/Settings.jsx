@@ -7,14 +7,36 @@ export default function SettingsPage() {
 
   const [username, setUsername] = useState(user?.username || "");
   const [email, setEmail] = useState(user?.email || "");
+
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
 
-  // ---------------- Update Profile ----------------
+  // ⚠️ Separate messages
+  const [profileMsg, setProfileMsg] = useState("");
+  const [profileMsgType, setProfileMsgType] = useState("success");
+
+  const [passwordMsg, setPasswordMsg] = useState("");
+  const [passwordMsgType, setPasswordMsgType] = useState("success");
+
+  const showProfileMsg = (msg, type = "success") => {
+    setProfileMsg(msg);
+    setProfileMsgType(type);
+    setTimeout(() => setProfileMsg(""), 3000);
+  };
+
+  const showPasswordMsg = (msg, type = "success") => {
+    setPasswordMsg(msg);
+    setPasswordMsgType(type);
+    setTimeout(() => setPasswordMsg(""), 3000);
+  };
+
+  /* =============================================
+        UPDATE PROFILE
+  ============================================= */
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+
     try {
       const res = await fetch("http://localhost:5000/api/users/profile", {
         method: "PUT",
@@ -22,23 +44,33 @@ export default function SettingsPage() {
         credentials: "include",
         body: JSON.stringify({ username, email }),
       });
+
       const data = await res.json();
-      setMessage(data.message || "Profile update failed");
+
+      if (!res.ok) {
+        showProfileMsg(data.error || "Failed to update profile", "error");
+        return;
+      }
+
+      showProfileMsg("Profile updated successfully!", "success");
     } catch (err) {
-      console.error(err);
-      setMessage("Server error while updating profile");
+      showProfileMsg("Server error", "error");
     }
   };
 
-  // ---------------- Change Password ----------------
+  /* =============================================
+        CHANGE PASSWORD
+  ============================================= */
   const handleChangePassword = async (e) => {
     e.preventDefault();
+
     if (!oldPassword || !newPassword || !confirmPassword) {
-      setMessage("Please fill all password fields!");
+      showPasswordMsg("Fill all fields!", "error");
       return;
     }
+
     if (newPassword !== confirmPassword) {
-      setMessage("New password and confirm password do not match!");
+      showPasswordMsg("New and confirm password mismatch!", "error");
       return;
     }
 
@@ -49,36 +81,46 @@ export default function SettingsPage() {
         credentials: "include",
         body: JSON.stringify({ oldPassword, newPassword }),
       });
-      const data = await res.json();
-      setMessage(data.message || "Failed to change password");
 
-      if (res.ok) {
-        setOldPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
+      const data = await res.json();
+
+      if (!res.ok) {
+        showPasswordMsg(data.error || "Incorrect old password!", "error");
+        return;
       }
+
+      showPasswordMsg("Password changed successfully!", "success");
+
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (err) {
-      console.error(err);
-      setMessage("Server error while changing password");
+      showPasswordMsg("Server error", "error");
     }
   };
 
-  // ---------------- Delete Account ----------------
+  /* =============================================
+        DELETE ACCOUNT
+  ============================================= */
   const handleDeleteAccount = async () => {
-    if (!window.confirm("Are you sure you want to delete your account? This cannot be undone!")) return;
+    if (!window.confirm("This cannot be undone. Continue?")) return;
 
     try {
       const res = await fetch("http://localhost:5000/api/users/delete", {
         method: "DELETE",
         credentials: "include",
       });
-      const data = await res.json();
-      setMessage(data.message || "Failed to delete account");
 
-      if (res.ok) logout();
+      const data = await res.json();
+
+      if (!res.ok) {
+        showProfileMsg(data.error || "Delete failed", "error");
+        return;
+      }
+
+      logout();
     } catch (err) {
-      console.error(err);
-      setMessage("Server error while deleting account");
+      showProfileMsg("Server error", "error");
     }
   };
 
@@ -86,76 +128,102 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-black text-white px-6 py-10">
       <h1 className="text-3xl font-bold mb-8">Settings</h1>
 
-      {/* Update Profile */}
+      {/* ================= PROFILE UPDATE ================= */}
       <form onSubmit={handleProfileUpdate} className="max-w-md space-y-6 mb-10">
+
         <h2 className="text-2xl font-semibold mb-2">Update Profile</h2>
+
+        {/* PROFILE MESSAGE BELOW HEADING */}
+        {profileMsg && (
+          <div
+            className={`px-4 py-3 rounded-md text-white ${
+              profileMsgType === "error" ? "bg-red-600" : "bg-green-600"
+            }`}
+          >
+            {profileMsg}
+          </div>
+        )}
+
         <div>
           <label className="block text-gray-300 mb-1">Username</label>
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white focus:outline-none"
+            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white"
           />
         </div>
+
         <div>
           <label className="block text-gray-300 mb-1">Email</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white focus:outline-none"
+            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white"
           />
         </div>
-        <button
-          type="submit"
-          className="bg-white text-black px-4 py-2 rounded-md hover:bg-gray-200"
-        >
+
+        <button className="bg-white text-black px-4 py-2 rounded-md">
           Save Profile
         </button>
       </form>
 
-      {/* Change Password */}
+      {/* ================= CHANGE PASSWORD ================= */}
       <form onSubmit={handleChangePassword} className="max-w-md space-y-6 mb-10">
+
         <h2 className="text-2xl font-semibold mb-2">Change Password</h2>
+
+        {/* PASSWORD MESSAGE BELOW HEADING */}
+        {passwordMsg && (
+          <div
+            className={`px-4 py-3 rounded-md text-white ${
+              passwordMsgType === "error" ? "bg-red-600" : "bg-green-600"
+            }`}
+          >
+            {passwordMsg}
+          </div>
+        )}
+
         <div>
           <label className="block text-gray-300 mb-1">Old Password</label>
           <input
             type="password"
             value={oldPassword}
             onChange={(e) => setOldPassword(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white focus:outline-none"
+            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white"
           />
         </div>
+
         <div>
           <label className="block text-gray-300 mb-1">New Password</label>
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white focus:outline-none"
+            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white"
           />
         </div>
+
         <div>
           <label className="block text-gray-300 mb-1">Confirm New Password</label>
           <input
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white focus:outline-none"
+            className="w-full px-4 py-2 bg-gray-800 rounded-md text-white"
           />
         </div>
-        <button
-          type="submit"
-          className="bg-white text-black px-4 py-2 rounded-md hover:bg-gray-200"
-        >
+
+        <button className="bg-white text-black px-4 py-2 rounded-md">
           Change Password
         </button>
       </form>
 
-      {/* Danger Zone */}
+      {/* ================= DELETE ACCOUNT ================= */}
       <div className="max-w-md">
         <h2 className="text-2xl font-semibold mb-2">Danger Zone</h2>
+
         <button
           onClick={handleDeleteAccount}
           className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
@@ -163,8 +231,6 @@ export default function SettingsPage() {
           Delete Account
         </button>
       </div>
-
-      {message && <p className="text-green-400 mt-6">{message}</p>}
     </div>
   );
 }

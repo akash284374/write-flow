@@ -1,19 +1,16 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-/**
- * Middleware to protect routes — supports token from cookies or Authorization header.
- */
 export const protect = async (req, res, next) => {
   try {
     let token = null;
 
-    // 1️⃣ Try to get token from cookies
+    // 1️⃣ Check cookie
     if (req.cookies?.token) {
       token = req.cookies.token;
     }
 
-    // 2️⃣ Or from Authorization header
+    // 2️⃣ Check Authorization header
     else if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer ")
@@ -21,27 +18,34 @@ export const protect = async (req, res, next) => {
       token = req.headers.authorization.split(" ")[1];
     }
 
-    // 3️⃣ If no token found
     if (!token) {
-      return res.status(401).json({ success: false, message: "Not authorized, no token" });
+      return res.status(401).json({ success: false, message: "No token provided" });
     }
 
-    // 4️⃣ Verify token
+    // 3️⃣ Decode the token safely
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
       return res.status(401).json({
         success: false,
-        message:
-          err.name === "TokenExpiredError"
-            ? "Token expired"
-            : "Invalid token",
+        message: err.name === "TokenExpiredError" ? "Token expired" : "Invalid token",
       });
     }
 
-    // 5️⃣ Find user
-    const user = await User.findById(decoded.id).select("-password");
+    // 4️⃣ Extract the correct ID field (supports ALL formats)
+    const userId =
+      decoded.userId || decoded.id || decoded._id || decoded.uid;
+
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid token payload" });
+    }
+
+    // 5️⃣ Find the user
+    const user = await User.findById(userId).select("-password");
+
     if (!user) {
       return res.status(401).json({ success: false, message: "User not found" });
     }
@@ -51,7 +55,7 @@ export const protect = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error("Auth middleware error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Protect Middleware Error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };

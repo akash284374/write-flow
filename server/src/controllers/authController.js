@@ -1,11 +1,12 @@
 // server/src/controllers/authController.js
+
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { uploadImage } from "../config/cloudinary.js";
 
-// ---------------- HELPERS ----------------
-const createToken = (userId) =>
+// ======================= TOKEN HELPERS ===========================
+const createToken = (userId) => 
   jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
 const sendTokenCookie = (res, token) => {
@@ -13,14 +14,14 @@ const sendTokenCookie = (res, token) => {
 
   res.cookie("token", token, {
     httpOnly: true,
-    secure: isProd,                    // ✅ Only true in production with HTTPS
-    sameSite: isProd ? "none" : "lax", // ✅ Enables cross-origin cookie in production
-    maxAge: 7 * 24 * 60 * 60 * 1000,   // ✅ 7 days
-    path: "/",                         // ✅ Cookie accessible across all routes
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
   });
 };
 
-// ---------------- REGISTER ----------------
+// ======================= REGISTER ================================
 export const register = async (req, res) => {
   try {
     let { email, password, name, username } = req.body;
@@ -37,11 +38,20 @@ export const register = async (req, res) => {
       User.findOne({ username }),
     ]);
 
-    if (emailExists) return res.status(400).json({ success: false, message: "Email already exists" });
-    if (usernameExists) return res.status(400).json({ success: false, message: "Username already exists" });
+    if (emailExists)
+      return res.status(400).json({ success: false, message: "Email already exists" });
+
+    if (usernameExists)
+      return res.status(400).json({ success: false, message: "Username already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({ email, username, password: hashedPassword, name });
+
+    const user = await User.create({
+      email,
+      username,
+      password: hashedPassword,
+      name,
+    });
 
     const token = createToken(user._id);
     sendTokenCookie(res, token);
@@ -50,13 +60,13 @@ export const register = async (req, res) => {
       success: true,
       message: "User registered & logged in successfully",
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         username: user.username,
+        bio: user.bio,
         profileImage: user.profileImage,
         coverImage: user.coverImage,
-        bio: user.bio,
       },
     });
   } catch (error) {
@@ -65,7 +75,7 @@ export const register = async (req, res) => {
   }
 };
 
-// ---------------- LOGIN ----------------
+// ======================= LOGIN ================================
 export const login = async (req, res) => {
   try {
     let { email, password } = req.body;
@@ -77,10 +87,12 @@ export const login = async (req, res) => {
     email = email.toLowerCase().trim();
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ success: false, message: "Invalid credentials" });
+    if (!user)
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
+    if (!isMatch)
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
 
     const token = createToken(user._id);
     sendTokenCookie(res, token);
@@ -89,13 +101,13 @@ export const login = async (req, res) => {
       success: true,
       message: "Logged in successfully",
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         username: user.username,
+        bio: user.bio,
         profileImage: user.profileImage,
         coverImage: user.coverImage,
-        bio: user.bio,
       },
     });
   } catch (error) {
@@ -104,26 +116,26 @@ export const login = async (req, res) => {
   }
 };
 
-// ---------------- LOGOUT ----------------
+// ======================= LOGOUT ================================
 export const logout = async (req, res) => {
   try {
     const isProd = process.env.NODE_ENV === "production";
-
     res.clearCookie("token", {
       httpOnly: true,
       secure: isProd,
       sameSite: isProd ? "none" : "lax",
-      path: "/", // ✅ must match cookie path
+      path: "/",
     });
 
     return res.status(200).json({ success: true, message: "Logged out successfully" });
+
   } catch (error) {
     console.error("Logout Error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// ---------------- GET CURRENT USER ----------------
+// ======================= GET CURRENT USER ======================
 export const getMe = async (req, res) => {
   try {
     if (!req.user) {
@@ -133,13 +145,13 @@ export const getMe = async (req, res) => {
     return res.status(200).json({
       success: true,
       user: {
-        id: req.user._id,
+        _id: req.user._id,
         name: req.user.name,
         email: req.user.email,
         username: req.user.username,
+        bio: req.user.bio,
         profileImage: req.user.profileImage,
         coverImage: req.user.coverImage,
-        bio: req.user.bio,
       },
     });
   } catch (error) {
@@ -148,19 +160,20 @@ export const getMe = async (req, res) => {
   }
 };
 
+// Profile/cover/bio update remains same (your code is correct)
+
+
 // ---------------- UPDATE PROFILE IMAGE ----------------
 export const updateProfileImage = async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id;
-    
+    const userId = req.user._id;
+
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // Upload to Cloudinary using your existing uploadImage function
     const imageUrl = await uploadImage(req.file.path);
 
-    // Update user in database
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profileImage: imageUrl },
@@ -171,17 +184,17 @@ export const updateProfileImage = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       user: {
-        id: updatedUser._id,
+        _id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
         username: updatedUser.username,
+        bio: updatedUser.bio,
         profileImage: updatedUser.profileImage,
         coverImage: updatedUser.coverImage,
-        bio: updatedUser.bio,
-      }
+      },
     });
   } catch (err) {
     console.error("updateProfileImage error:", err);
@@ -192,16 +205,14 @@ export const updateProfileImage = async (req, res) => {
 // ---------------- UPDATE COVER IMAGE ----------------
 export const updateCoverImage = async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id;
-    
+    const userId = req.user._id;
+
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // Upload to Cloudinary using your existing uploadImage function
     const imageUrl = await uploadImage(req.file.path);
 
-    // Update user in database
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { coverImage: imageUrl },
@@ -212,17 +223,17 @@ export const updateCoverImage = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       user: {
-        id: updatedUser._id,
+        _id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
         username: updatedUser.username,
+        bio: updatedUser.bio,
         profileImage: updatedUser.profileImage,
         coverImage: updatedUser.coverImage,
-        bio: updatedUser.bio,
-      }
+      },
     });
   } catch (err) {
     console.error("updateCoverImage error:", err);
@@ -233,7 +244,7 @@ export const updateCoverImage = async (req, res) => {
 // ---------------- UPDATE BIO ----------------
 export const updateBio = async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id;
+    const userId = req.user._id;
     const { bio } = req.body;
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -246,17 +257,17 @@ export const updateBio = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       user: {
-        id: updatedUser._id,
+        _id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
         username: updatedUser.username,
+        bio: updatedUser.bio,
         profileImage: updatedUser.profileImage,
         coverImage: updatedUser.coverImage,
-        bio: updatedUser.bio,
-      }
+      },
     });
   } catch (err) {
     console.error("updateBio error:", err);

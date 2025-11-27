@@ -15,7 +15,7 @@ import settingRoutes from "./routes/settingRoutes.js";
 import userDashboardRoutes from "./routes/userDashboardRoutes.js";
 import tagRoutes from "./routes/tagRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-import followRoutes from "./routes/followRoutes.js"; // ✅ ADDED
+import followRoutes from "./routes/followRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -23,18 +23,14 @@ const app = express();
 // ---------------- CONNECT TO DATABASE ----------------
 connectDB();
 
-// ---------------- CORS ----------------
-const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,https://flexkicks.vercel.app")
-  .split(",")
-  .map(origin => origin.trim());
-
+// ---------------- FIXED CORS CONFIG ----------------
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "https://flexkicks.vercel.app"
+    ],
     credentials: true,
   })
 );
@@ -67,7 +63,7 @@ app.use("/api/settings", settingRoutes);
 app.use("/api/user-dashboard", userDashboardRoutes);
 app.use("/api/tags", tagRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/follow", followRoutes); // ✅ ADDED
+app.use("/api/follow", followRoutes); // FOLLOW SYSTEM FIXED
 
 // ---------------- HEALTH CHECK ----------------
 app.get("/", (req, res) => res.send("🚀 API is running successfully"));

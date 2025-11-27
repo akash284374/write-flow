@@ -14,11 +14,13 @@ const followSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: true, updatedAt: false }, // only track createdAt
+    timestamps: true, // adds createdAt & updatedAt
   }
 );
 
-// Prevent duplicate follows (same as @@unique in Prisma)
 followSchema.index({ followerId: 1, followeeId: 1 }, { unique: true });
+
+followSchema.index({ followerId: 1 });
+followSchema.index({ followeeId: 1 });
 
 export default mongoose.model("Follow", followSchema);

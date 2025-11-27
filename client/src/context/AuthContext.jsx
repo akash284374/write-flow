@@ -1,5 +1,6 @@
 // src/context/AuthContext.jsx
 import { createContext, useState, useEffect, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import authServices from "../services/authServices";
 
 export const AuthContext = createContext(null);
@@ -7,10 +8,15 @@ export const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate(); // ✅ Navigation added
 
+  // ============================================
+  // INITIAL AUTH CHECK
+  // ============================================
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        setUser(null);
         const data = await authServices.checkAuth();
         if (data.success && data.user) {
           setUser(data.user);
@@ -28,39 +34,59 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // ✅ CRITICAL: This function fetches latest user data from backend
+  // ============================================
+  // REFRESH USER
+  // ============================================
   const refreshUser = async () => {
     try {
-      console.log("🔄 Refreshing user data from backend...");
       const data = await authServices.checkAuth();
       if (data.success && data.user) {
-        console.log("✅ User data refreshed:", data.user);
         setUser(data.user);
         return data.user;
-      } else {
-        console.error("❌ Failed to refresh user:", data);
       }
     } catch (err) {
-      console.error("❌ refreshUser error:", err);
+      console.error("refreshUser error:", err);
     }
   };
 
+  // ============================================
+  // LOGIN (Auto redirect to Home)
+  // ============================================
   const login = async (credentials) => {
     const data = await authServices.login(credentials);
-    if (data.success && data.user) setUser(data.user);
+
+    if (data.success && data.user) {
+      setUser(data.user);
+      navigate("/"); // 🔥 redirect to homepage
+    }
+
     return data;
   };
 
+  // ============================================
+  // SIGNUP (Auto redirect to Home)
+  // ============================================
   const signup = async (userData) => {
     const data = await authServices.register(userData);
-    if (data.success && data.user) setUser(data.user);
+
+    if (data.success && data.user) {
+      setUser(data.user);
+      navigate("/"); // 🔥 redirect to homepage
+    }
+
     return data;
   };
 
+  // ============================================
+  // OTP VERIFICATION
+  // ============================================
   const verifyOtp = async (email, otp) => {
     return authServices.verifyOtp(email, otp);
   };
 
+  // ============================================
+  // LOGOUT (Auto redirect to login)
+  // ============================================
   const logout = async () => {
     try {
       await authServices.logout();
@@ -68,6 +94,7 @@ export const AuthProvider = ({ children }) => {
       console.error("Logout failed", err);
     } finally {
       setUser(null);
+      navigate("/login"); // 🔥 redirect
     }
   };
 
@@ -80,8 +107,7 @@ export const AuthProvider = ({ children }) => {
         signup,
         verifyOtp,
         logout,
-        setUser,
-        refreshUser, // ✅ MUST be here
+        refreshUser,
         isAuthenticated: !!user,
       }}
     >
